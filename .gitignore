@@ -1,3 +1,5 @@
 
 *.min.js
 /closure-compiler-*.jar
+
+/.vscode

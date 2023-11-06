@@ -377,4 +377,5 @@ function getAvailableChecks(check) {
         }
     });
     //console.log(Date.now() - t);
+    postChange();
 }

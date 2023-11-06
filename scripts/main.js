@@ -533,6 +533,7 @@ function initializePage() {
     });
 
     synchronizeMapsAndTracker();
+    initSyncButtons();
 }
 
 $(document).ready(function(){
@@ -694,10 +695,8 @@ $(document).ready(function(){
                         maxKeyCounts[16] = parseInt(data['StarHuntRequired']);
                         $(`p[data-chapter-key-count="16"]`).text(`${currentKeyCounts[16]}/${maxKeyCounts[16]}`);
                         if(maxKeyCounts[16] >= 100){
-                            console.log(maxKeyCounts[16], "Cur count high");
                             $(`p[data-chapter-key-count="16"]`).css("font-size", "1.125em");
                         }else{
-                            console.log(maxKeyCounts[16], "Cur count low");
                             $(`p[data-chapter-key-count="16"]`).css("font-size", "");
                         }
                     }
@@ -878,3 +877,222 @@ function resetPage() {
     isPageReloading = false;
     getAvailableChecks();
 }
+
+
+function initSyncButtons() {
+    $('#randomizer-follow-id').keyup(function(e){
+        if(e.keyCode == 13){
+            startTracking($(this).val(), true);
+        }
+    });
+
+    $('#randomizer-follow-button').click(function(){
+        startTracking($('#randomizer-follow-id').val(), true);
+    });
+
+    $('#randomizer-my-follow-button').click(function(){
+        let data = serializeTrackerData();
+        let request = $.ajax({
+            url: '/ajax/startSession.php',
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            async: true, //Shouldn't be required be we SUPER want the ajax to be async for the controller
+            data: data,
+        }).done(function(e){
+            if(e.id == undefined) {
+              alert('Could not create new session. Server unavailable.');  
+            } else {
+                $('#randomizer-my-follow-id').val(e.id)
+            }
+        });
+
+        data = null;
+        request.onreadystatechange = null;
+        request.abort = null;
+        request = null;
+    });
+}
+
+function startTracking(trackingID, shouldAlert) {
+    if(trackingID != undefined && trackingID > 0){
+        window.setTimeout(getChanges, refreshTime);
+    }
+
+    if(shouldAlert == true){
+        alert('Tracking ID ' + trackingID);
+    }
+}
+
+let refreshTime = 1000;
+let lastRefreshTimestamp = 0;
+
+function getChanges(){
+    let data = JSON.stringify({'updateTime': lastRefreshTimestamp});
+    let request = $.ajax({
+        url: '/ajax/getData.php?id=' + $('#randomizer-follow-id').val(),
+        method: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        async: true, //Shouldn't be required be we SUPER want the ajax to be async for the controller
+        data: data
+    }).done(function(e) {
+        if(e.status != undefined && e.status == 'ok'){return;}
+        deserializeTrackerData(e);
+        postChange();
+    }).always(function(){
+        window.setTimeout(getChanges, refreshTime);
+    });
+
+    data = null;
+    request.onreadystatechange = null;
+    request.abort = null;
+    request = null;
+}
+
+function postChange(){
+    if($('#randomizer-my-follow-id').val() != undefined && $('#randomizer-my-follow-id').val() > 0 && $('#randomizer-my-follow-id').val() != $('#randomizer-follow-id').val()){
+        let data = serializeTrackerData();
+        let request = $.ajax({
+            url: '/ajax/postData.php?id=' + $('#randomizer-my-follow-id').val(),
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            async: true, //Shouldn't be required be we SUPER want the ajax to be async for the controller
+            data: data,
+        });
+
+        data = null;
+        request.onreadystatechange = null;
+        request.abort = null;
+        request = null;
+    }
+}
+
+function serializeTrackerData() {
+    let boots = ((($('#Ultra\\ Boots').length << 1) | $('#Ultra\\ Boots').length) | ($('#Super\\ Boots').length << 1) | ($('#Boots').length)) - 1
+    let hammer = ((($('#Ultra\\ Hammer').length << 1) | $('#Ultra\\ Hammer').length) | ($('#Super\\ Hammer').length << 1) | ($('#Hammer').length)) - 1
+
+    let retVal = {boots: boots, hammer: hammer};
+    
+    retVal['starSpirits'] = getClasses('.star-spirit:visible')
+    retVal['partners'] = getClasses('.partner:visible')
+    retVal['keyItems'] = getClasses('.key-item:visible')
+    retVal['optionalItems'] = getClasses('.optional-item:visible')
+    retVal['kootItems'] = getClasses('.koot-item:visible')
+
+    retVal['maxKeyCounts'] = maxKeyCounts;
+    retVal['currentKeyCounts'] = currentKeyCounts;
+
+    retVal['updateTime'] = Date.now();
+    retVal['seed'] = $('#randomizer-seed').val();
+
+    return JSON.stringify(retVal);
+}
+
+function deserializeTrackerData(data){
+    if($("#randomizer-seed").val() != data.seed && data.seed != '' && data.seed > 0) {
+        $("#randomizer-seed").val(data.seed)
+        $("#load-seed-button").click();
+    }
+
+    lastRefreshTimestamp = data.updateTime
+
+    for(id in maxKeyCounts){
+        maxKeyCounts[id] = data.maxKeyCounts[id]
+    }
+    for(id in currentKeyCounts){
+        currentKeyCounts[id] = data.currentKeyCounts[id]
+    }
+
+    let hammerID    = 'Hammer-less';
+    let hammerSrc   = 'images/upgrades/PM_No_Hammer.png'
+    switch(data.hammer){
+        case 0:
+            hammerID    = 'Hammer';
+            hammerSrc   = 'images/upgrades/PM_Normal_Hammer_Sprite.png'
+            break;
+        case 1:
+            hammerID    = 'Super Hammer';
+            hammerSrc   = 'images/upgrades/PM_Super_Hammer_Sprite.png'
+            break;
+        case 2:
+            hammerID    = 'Ultra Hammer';
+            hammerSrc   = 'images/upgrades/PM_Ultra_Hammer_Sprite.png'
+            break;
+    }
+
+    let bootsID    = 'Boot-less';
+    let bootsSrc   = 'images/upgrades/PM_No_Boots.png'
+    switch(data.boots){
+        case 0:
+            bootsID    = 'Boots';
+            bootsSrc   = 'images/upgrades/PM_Normal_Boots_Sprite.png'
+            break;
+        case 1:
+            bootsID    = 'Super Boots';
+            bootsSrc   = 'images/upgrades/SuperBoots_PM.png'
+            break;
+        case 2:
+            bootsID    = 'Ultra Boots';
+            bootsSrc   = 'images/upgrades/UltraBoots_PM.png'
+            break;
+    }
+
+    if($('[id*=Boot]').attr('src') != bootsSrc){
+        $('[id*=Boot]').attr('src', bootsSrc);
+        $('[id*=Boot]').attr('data-state', data.boots);
+        $('[id*=Boot]').attr('id', bootsID);
+    }
+    if($('[id*=Hammer]').attr('src') != hammerSrc){
+        $('[id*=Hammer]').attr('src', hammerSrc);
+        $('[id*=Hammer]').attr('data-state', data.hammer);
+        $('[id*=Hammer]').attr('id', hammerID);
+    }
+
+    let setClasses = {...data.keyItems, ...data.KootItems, ...data.partners, ...data.optionalItems, ...data.starSpirits}
+
+    for(id in setClasses){
+        $(document.getElementById(id)).removeClass()
+        $(document.getElementById(id)).addClass(setClasses[id])
+    }
+
+    $("p[data-chapter-key-count]").each(function() {
+        var c = $(this).data('chapter-key-count')
+        $(this).text(`${currentKeyCounts[c]}/${maxKeyCounts[c]}`);
+    });
+
+    for(i = 1; i <= 8; i++){
+        checkIfChapterIsCompletable(i);
+    }
+
+}
+
+function getClasses(query){
+    let classStrings = {};
+    
+    let elem = $(query);
+    elem.each(function(e){
+        elem[e].classList.forEach(function(ee){
+            if(classStrings[elem[e].id] == undefined)
+                classStrings[elem[e].id] = ee;
+            else
+                classStrings[elem[e].id] += ' ' + ee;
+        })
+    });
+
+    return classStrings;
+}
+
+function startWebsocket(){
+
+}
+
+$(document).ready(function(){
+    let urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get('trackID') != undefined){
+        $('#randomizer-follow-id').val(urlParams.get('trackID'));
+        startTracking(urlParams.get('trackID'), false);
+    }
+
+})
