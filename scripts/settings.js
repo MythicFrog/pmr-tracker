@@ -8,6 +8,21 @@
 /// Initialize the callbacks for setting what areas are open from the start.
 ///
 function initializeOpenAreasSettings() {
+    $("#forest-open").click(function() {
+        var isChecked = $(this).is(':checked');
+        $("[id='Forest Pass']").each(function() {
+            var compact_checked = $("#compact-tracker").is(':checked');
+            var misc_checked = $("#combine-misc").is(':checked');
+            // make sure to hide / show the correct forest pass
+            if ($(this).parent().hasClass("compact-misc-item")) {
+                $(this).parent().toggle(!isChecked && misc_checked && compact_checked);
+            } else {
+                $(this).parent().toggle(!isChecked);
+            }
+        });
+        localStorage.setItem("forest-open", isChecked);
+    });
+
     $("#toybox-open").click(function() {
         var isChecked = $(this).is(':checked');
         localStorage.setItem("toybox-open", isChecked);
@@ -61,7 +76,7 @@ function initializeOpenAreasSettings() {
         }
 
         var isChecked = $(this).is(':checked');
-        $("#BowsersKeySlot").toggle(!isChecked);
+        $("[id=BowsersKeySlot]").toggle(!isChecked);
         localStorage.setItem("fast-bowser-castle", isChecked);
         checkIfChapterIsCompletable(8);
     });
@@ -73,8 +88,8 @@ function initializeOpenAreasSettings() {
         }
 
         var isChecked = $(this).is(':checked');
-        $("#PowerStarSlot").toggle(isChecked);
-        $("#StarRodSlot").toggle(!isChecked);
+        $("[id=PowerStarSlot]").toggle(isChecked);
+        $("[id=StarRodSlot]").toggle(!isChecked);
         localStorage.setItem("power-star", isChecked);
         checkIfChapterIsCompletable(8);
     });
@@ -103,6 +118,11 @@ function initializeOpenAreasSettings() {
 }
 
 function loadOpenAreaSettings() {
+    var forest_open = localStorageGetWithDefault("forest-open", false) == "true";
+    if (forest_open) {
+        $("#forest-open").click();
+    }
+
     var toybox_open = localStorageGetWithDefault("toybox-open", "true") == "true";
     if (!toybox_open) {
         $("#toybox-open").click();
@@ -247,7 +267,15 @@ function initializeOptionalRandomizedSettings() {
         $("#flag-letters").toggle(isChecked);
         countChecks();
         $("div.letter-tracker").toggle(isChecked);
-        $("#Letters").parent().toggle(!isChecked);
+
+        $("[id=Letters]").each(function() {
+            var elem = $(this).parent();
+            if (elem.hasClass("compact-misc-item")) {
+                elem.toggle(!isChecked && $("#combine-misc").is(':checked'));
+            } else {
+                elem.toggle(!isChecked);
+            }
+        });
     });
 
     $("#trading-event-randomized").click(function() {
