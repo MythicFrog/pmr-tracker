@@ -1,12 +1,24 @@
 <?php
 
-$dbInfo = explode('|', file_get_contents('/home/cupcake/dbPass'));
+// This file should contain 1 line with the string 
+//      MYSQL_HOST|DB_NAME|USERNAME|PASSWORD
+$dbInfo = explode('|', file_get_contents('PATH/TO/DB_CREDENTIALS'));
 
 $mysqlHost = trim($dbInfo[0]);
 $mysqlDatabase = trim($dbInfo[1]);
 $mysqlUser = trim($dbInfo[2]);
 $mysqlPassword = trim($dbInfo[3]);
 
+/* CREATING THE DB TABLE
+
+CREATE TABLE `Sessions` (
+	`id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	`data` LONGTEXT NOT NULL DEFAULT '{}' COLLATE 'utf8mb4_bin',
+	PRIMARY KEY (`id`) USING BTREE,
+	CONSTRAINT `data` CHECK (json_valid(`data`))
+);
+
+*/
 $con = new PDO('mysql:host=' . $mysqlHost . ';dbname=' . $mysqlDatabase, $mysqlUser, $mysqlPassword);
 
 function query($query, $params = null){
